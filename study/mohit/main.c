@@ -166,7 +166,7 @@ int     init_mutexes(t_vars *vars)
 		return (0);
 	i = 0;
 	while (i < vars->n_philo)
-		if (pthread_mutex_init(&vars->forks[i++], NULL))
+		if (pthread_mutex_init(&vars->forks[i++], NULL)) // mutex 객체 초기화
 			return (0);
 	i = 0;
 	while (i < vars->n_philo)
@@ -195,10 +195,13 @@ int		init(int argc, char **argv)
 	vars->t_eat = ft_atoi(argv[3]);
 	vars->t_sleep = ft_atoi(argv[4]);
 	if (argc == 6)
-		vars->n_must_eat = ft_atoi(argv[5]);
+	{
+		if ((vars->n_must_eat = ft_atoi(argv[5])) <= 0)
+			return (0);
+	}
 	else
 		vars->n_must_eat = -1;
-	if (vars->n_philo < 2 || vars->n_must_eat < -1)
+	if (vars->n_philo < 2)
 		return (0);
 	if (vars->t_die < 0 || vars->t_eat < 0 || vars->t_sleep < 0)
 		return (0);
