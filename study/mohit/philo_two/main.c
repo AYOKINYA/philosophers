@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
 
 typedef struct  	s_philo
@@ -25,13 +26,13 @@ typedef struct  	s_vars
 	int     		n_alive;
 	int     		flag_died;
 	t_philo 		*philo;
-	pthread_mutex_t *forks;
-	pthread_mutex_t *eats;
-	pthread_mutex_t pickup;
-	pthread_mutex_t putdown;
-	pthread_mutex_t alive;
-	pthread_mutex_t print;
-	pthread_mutex_t someone_died;
+	sem_t			*forks;
+	sem_t			*eats;
+	sem_t			*pickup;
+	sem_t			*putdown;
+	sem_t			*alive;
+	sem_t			*print;
+	sem_t			*someone_died;
 }               	t_vars;
 
 typedef enum	e_status
@@ -160,9 +161,9 @@ int     init_mutexes(t_vars *vars)
 	int     i;
 
 	vars->n_alive = vars->n_philo;
-	if (!(vars->forks = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * vars->n_philo)))
+	if (!(vars->forks = (sem_t *)malloc(sizeof(sem_t) * vars->n_philo)))
 		return (0);
-	if (!(vars->eats = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * vars->n_philo)))
+	if (!(vars->eats = (sem_t *)malloc(sizeof(sem_t) * vars->n_philo)))
 		return (0);
 	i = 0;
 	while (i < vars->n_philo)
@@ -259,6 +260,7 @@ void    print_status_body(t_vars *vars, t_philo *philo, t_status status, char *p
 	ft_putstr(" ");
 	ft_putnbr(philo_no);
 	ft_putstr(phrase);
+	free(phrase);
 	if (!(status == DIED))
 		pthread_mutex_unlock(&vars->print);
 }
@@ -267,7 +269,7 @@ int    print_status(t_vars *vars, t_philo *philo, t_status status)
 {
 	char	*phrase;
 
-	phrase = ft_strdup("");
+	phrase = 0;
 	if (status == THINKING)
 		phrase = ft_strdup(" is thinking\n");
 	else if (status == EATING)
@@ -281,7 +283,6 @@ int    print_status(t_vars *vars, t_philo *philo, t_status status)
 	if (phrase == 0)
 		return (0);
 	print_status_body(vars, philo, status, phrase);
-	free(phrase);
 	return (1);
 }
 
@@ -305,7 +306,7 @@ int     taken_fork_and_eat(t_vars *vars, t_philo *philo)
 	pthread_mutex_unlock(&vars->forks[idx]);
 	pthread_mutex_unlock(&vars->forks[(idx + 1) % vars->n_philo]);
 	pthread_mutex_unlock(&vars->putdown);
-	if (vars->n_must_eat && (++(philo->n_eat) == vars->n_must_eat))
+	if ((++(philo->n_eat) == vars->n_must_eat))
 		return (0);
 	return (1);
 }
@@ -343,7 +344,6 @@ void    *monitoring(void *v_philo)
 		pthread_mutex_lock(&vars->eats[philo->p_idx]);
 		if (get_time() - philo->last_eat_time > (unsigned long)vars->t_die)
 		{
-			
 			print_status(vars, philo, DIED);
 			pthread_mutex_lock(&vars->someone_died);
 			vars->flag_died = 1;
@@ -433,15 +433,15 @@ int     free_all(int ret)
 	vars = get_vars();
 	i = 0;
 	while (i < vars->n_philo)
-		pthread_mutex_destroy(&vars->forks[i++]); //mutex_destroy는 ptherad_mutex_t 객체를 없앤다!!
+		sem_destroy(&vars->forks[i++]); //mutex_destroy는 ptherad_mutex_t 객체를 없앤다!!
 	i = 0;
 	while (i < vars->n_philo)
-		pthread_mutex_destroy(&vars->eats[i++]);
-	pthread_mutex_destroy(&vars->alive);
-	pthread_mutex_destroy(&vars->print);
-	pthread_mutex_destroy(&vars->someone_died);
-	pthread_mutex_destroy(&vars->putdown);
-	pthread_mutex_destroy(&vars->pickup);
+		sem_destroy(&vars->eats[i++]);
+	sem_destroy(&vars->alive);
+	sem_destroy(&vars->print);
+	sem_destroy(&vars->someone_died);
+	sem_destroy(&vars->putdown);
+	sem_destroy(&vars->pickup);
 	free_struct((void *)vars->philo);
 	free_struct((void *)vars->eats);
 	free_struct((void *)vars->forks);
@@ -457,6 +457,9 @@ int     main(int argc, char **argv)
 	vars = get_vars();
 	if (!init(argc, argv) || !create_philo(vars))
 		return (-1);
+	//printf("====init done===\n");
+	//create philo 안에서 detach를 했기 때문에 thread functions가
+	//while문이라 하더라도 문제 없이 아래 while문으로 들어갈 수 있다!!!
 	while (1)
 	{
 		pthread_mutex_lock(&vars->alive);
@@ -465,7 +468,7 @@ int     main(int argc, char **argv)
 		pthread_mutex_unlock(&vars->alive);
 		pthread_mutex_lock(&vars->someone_died);
 		if (vars->flag_died == 1)
-			return (-1);
+			return (free_all(0));
 		pthread_mutex_unlock(&vars->someone_died);
 		ft_usleep(5);
 	}
