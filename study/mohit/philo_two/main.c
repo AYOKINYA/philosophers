@@ -5,6 +5,8 @@
 #include <semaphore.h>
 #include <stdio.h>
 
+//replace mutex with semaphore! mutex lock to mutex unlock are sem wait to sem post;
+
 typedef struct  	s_philo
 {
 	int             p_idx;
@@ -151,8 +153,6 @@ int			ft_atoi(const char *str)
 t_vars  *get_vars(void)
 {
 	static t_vars vars;
-	//static으로 선언하면 함수 내에서 부를 수 있다! 굳이 인자로 계속 넘겨주지 않아도 된다.
-	//minishell signal 함수 처리 때도 썼으면 괜찮았을 듯
 	return (&vars);
 }
 
@@ -287,7 +287,6 @@ void    print_status_body(t_vars *vars, t_philo *philo, t_status status, char *p
 	{
 		if ((sem_post(vars->someone_died) == -1))
 			ft_error("error: sem_post\n", 1);
-		free(phrase);
 		return ;
 	}
 	if ((sem_post(vars->someone_died) == -1))
@@ -298,7 +297,6 @@ void    print_status_body(t_vars *vars, t_philo *philo, t_status status, char *p
 	ft_putstr_fd(" ", 1);
 	ft_putnbr(philo_no);
 	ft_putstr_fd(phrase, 1);
-	free(phrase);
 	if (!(status == DIED))
 	{
 		if ((sem_post(vars->print) == -1))
@@ -324,6 +322,7 @@ int    print_status(t_vars *vars, t_philo *philo, t_status status)
 	if (phrase == 0)
 		return (0);
 	print_status_body(vars, philo, status, phrase);
+	free(phrase);
 	return (1);
 }
 
@@ -470,7 +469,7 @@ int     create_philo(t_vars *vars)
 		return (0);
 	return (1);
 }
-int     free_struct(void *s) //here the argument is void to free variables easily!
+int     free_struct(void *s)
 {
 	if (s)
 		free(s);
@@ -478,10 +477,12 @@ int     free_struct(void *s) //here the argument is void to free variables easil
 	return (1);
 }
 
-int     free_all(int ret)
+int     free_all(char *str, int ret)
 {
 	t_vars *vars;
 
+	if (str != 0)
+		ft_putstr_fd(str, 2);
 	vars = get_vars();
 	sem_close(vars->forks);
 	sem_close(vars->eats);
@@ -508,20 +509,20 @@ int     main(int argc, char **argv)
 	while (1)
 	{
 		if ((sem_wait(vars->alive) == -1))
-			return (ft_error("error: sem_wait\n", -1));
+			return (free_all("error: sem_wait\n", -1));
 		if (vars->n_alive == 0)
 			break ;
 		if ((sem_post(vars->alive) == -1))
-			return (ft_error("error: sem_post\n", -1));
+			return (free_all("error: sem_post\n", -1));
 		if ((sem_wait(vars->someone_died) == -1))
-			return (ft_error("error: sem_wait\n", -1));
+			return (free_all("error: sem_wait\n", -1));
 		if (vars->flag_died == 1)
-			return (free_all(0));
+			return (free_all(0, 0));
 		if ((sem_post(vars->someone_died) == -1))
-			return (ft_error("error: sem_post\n", -1));
+			return (free_all("error: sem_post\n", -1));
 		ft_usleep(5);
 	}
 	if (vars->flag_died == 0)
 		ft_putstr_fd("Every philosopher ate enough!\n", 1);
-	return (free_all(0));
+	return (free_all(0, 0));
 }
