@@ -12,7 +12,6 @@ typedef struct  	s_philo
 	int             n_eat;
 	unsigned long   start_time;
 	unsigned long   last_eat_time;
-	unsigned long	time_at_death;
 }               	t_philo;
 
 typedef struct  	s_vars
