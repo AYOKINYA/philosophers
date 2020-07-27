@@ -13,7 +13,6 @@ typedef struct  	s_philo
 	int             n_eat;
 	unsigned long   start_time;
 	unsigned long   last_eat_time;
-	unsigned long	time_at_death;
 }               	t_philo;
 
 typedef struct  	s_vars
@@ -32,6 +31,7 @@ typedef struct  	s_vars
 	sem_t			*putdown;
 	sem_t			*alive;
 	sem_t			*print;
+	sem_t			*print_error;
 	sem_t			*someone_died;
 }               	t_vars;
 
@@ -59,9 +59,9 @@ void ft_putchar(char c)
 	write(1, &c, 1);
 }
 
-void ft_putstr(char *str)
+void ft_putstr_fd(char *str, int fd)
 {
-	write(1, str, ft_strlen(str));
+	write(fd, str, ft_strlen(str));
 }
 
 void	ft_putnbr(long n)
@@ -156,32 +156,74 @@ t_vars  *get_vars(void)
 	return (&vars);
 }
 
-int     init_mutexes(t_vars *vars)
+unsigned long    get_time(void)
 {
-	int     i;
+	struct timeval  tv;
 
+	if (gettimeofday(&tv, NULL))
+		return (0);
+	return (tv.tv_sec * 1000 + tv.tv_usec / 1000); // in ms.
+}
+
+int ft_error(char *str, int ret)
+{
+	t_vars *vars;
+	
+	vars = get_vars();
+	sem_wait(vars->print_error);
+	write(2, str, ft_strlen(str));
+	sem_post(vars->print_error);
+	return (ret);
+}
+
+void    ft_usleep(unsigned long time)
+{
+	unsigned long start;
+	unsigned long time_elapsed;
+
+	start = get_time();
+	while (1)
+	{
+		time_elapsed = get_time() - start;
+		if (time_elapsed >= time)
+			break ;
+		usleep(1);
+	}
+}
+
+void				clean_shm(void)
+{
+	sem_unlink("/forks");
+	sem_unlink("/eats");
+	sem_unlink("/pickup");
+	sem_unlink("/putdown");
+	sem_unlink("/print");
+	sem_unlink("/alive");
+	sem_unlink("/someone_died");
+	sem_unlink("/print_error");
+}
+
+int     init_semaphore(t_vars *vars)
+{
 	vars->n_alive = vars->n_philo;
-	if (!(vars->forks = (sem_t *)malloc(sizeof(sem_t) * vars->n_philo)))
+	clean_shm();
+	if ((vars->forks = sem_open("/forks", O_CREAT, 0660, vars->n_philo))\
+	== SEM_FAILED)
 		return (0);
-	if (!(vars->eats = (sem_t *)malloc(sizeof(sem_t) * vars->n_philo)))
+	if ((vars->eats = sem_open("/eats", O_CREAT, 0660, vars->n_philo)) == SEM_FAILED)
 		return (0);
-	i = 0;
-	while (i < vars->n_philo)
-		if (pthread_mutex_init(&vars->forks[i++], NULL)) // mutex 객체 초기화
-			return (0);
-	i = 0;
-	while (i < vars->n_philo)
-		if (pthread_mutex_init(&vars->eats[i++], NULL))
-			return (0);
-	if (pthread_mutex_init(&vars->pickup, NULL))
+	if ((vars->pickup = sem_open("/pickup", O_CREAT, 0660, 1)) == SEM_FAILED)
 		return (0);
-	if (pthread_mutex_init(&vars->putdown, NULL))
+	if ((vars->putdown = sem_open("/putdown", O_CREAT, 0660, 1)) == SEM_FAILED)
 		return (0);
-	if (pthread_mutex_init(&vars->alive, NULL))
+	if ((vars->print = sem_open("/print", O_CREAT, 0660, 1)) == SEM_FAILED)
 		return (0);
-	if (pthread_mutex_init(&vars->print, NULL))
+	if ((vars->alive = sem_open("/alive", O_CREAT, 0660, 1)) == SEM_FAILED)
 		return (0);
-	if (pthread_mutex_init(&vars->someone_died, NULL))
+	if ((vars->someone_died = sem_open("/someone_died", O_CREAT, 0660, 1)) == SEM_FAILED)
+		return (0);
+	if ((vars->print_error = sem_open("/print_error", O_CREAT, 0660, 1))\
+	== SEM_FAILED)
 		return (0);
 	return (1);
 }
@@ -206,39 +248,30 @@ int		init(int argc, char **argv)
 		return (0);
 	if (vars->t_die < 0 || vars->t_eat < 0 || vars->t_sleep < 0)
 		return (0);
-	if (!(init_mutexes(vars)))
+	if (!(init_semaphore(vars)))
 		return (0);
 	return (1);
 }
 
-unsigned long    get_time(void)
+int						ft_unlink(int ret)
 {
-	struct timeval  tv;
-
-	if (gettimeofday(&tv, NULL))
-		return (0);
-	return (tv.tv_sec * 1000 + tv.tv_usec / 1000); // in ms.
-}
-
-int ft_error(char *str)
-{
-	write(2, str, ft_strlen(str));
-	return (0);
-}
-
-void    ft_usleep(unsigned long time)
-{
-	unsigned long start;
-	unsigned long time_elapsed;
-
-	start = get_time();
-	while (1)
-	{
-		time_elapsed = get_time() - start;
-		if (time_elapsed >= time)
-			break ;
-		usleep(1);
-	}
+	if ((sem_unlink("/forks") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/eats") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/pickup") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/putdown") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/print") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/print_error") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/alive") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	if ((sem_unlink("/someone_died") == -1))
+		ft_error("error: sem_unlink\n", 1);
+	return (ret);
 }
 
 void    print_status_body(t_vars *vars, t_philo *philo, t_status status, char *phrase)
@@ -247,22 +280,30 @@ void    print_status_body(t_vars *vars, t_philo *philo, t_status status, char *p
 	int				philo_no;
 
 	philo_no = philo->p_idx + 1;
-	pthread_mutex_lock((&vars->print));
 	time = get_time() - philo->start_time;
-	pthread_mutex_lock(&vars->someone_died);
+	if ((sem_wait(vars->someone_died) == -1))
+		ft_error("error: sem_wait\n", 1);
 	if (vars->flag_died)
 	{
-		pthread_mutex_unlock(&vars->someone_died);
+		if ((sem_post(vars->someone_died) == -1))
+			ft_error("error: sem_post\n", 1);
+		free(phrase);
 		return ;
 	}
-	pthread_mutex_unlock(&vars->someone_died);
+	if ((sem_post(vars->someone_died) == -1))
+		ft_error("error: sem_post\n", 1);
+	if ((sem_wait(vars->print) == -1))
+		ft_error("error: sem_wait\n", 1);
 	ft_putnbr(time);
-	ft_putstr(" ");
+	ft_putstr_fd(" ", 1);
 	ft_putnbr(philo_no);
-	ft_putstr(phrase);
+	ft_putstr_fd(phrase, 1);
 	free(phrase);
 	if (!(status == DIED))
-		pthread_mutex_unlock(&vars->print);
+	{
+		if ((sem_post(vars->print) == -1))
+			ft_error("error: sem_post\n", 1);
+	}
 }
 
 int    print_status(t_vars *vars, t_philo *philo, t_status status)
@@ -288,24 +329,29 @@ int    print_status(t_vars *vars, t_philo *philo, t_status status)
 
 int     taken_fork_and_eat(t_vars *vars, t_philo *philo)
 {
-	int idx;
-
-	idx = philo->p_idx;
-	pthread_mutex_lock(&vars->pickup);
-	pthread_mutex_lock(&vars->forks[idx]);
+	if ((sem_wait(vars->pickup) == -1))
+		ft_error("error: sem_wait\n", 1);
+	if ((sem_wait(vars->forks) == -1))
+		ft_error("error: sem_wait\n", 1);
 	print_status(vars, philo, FORK_TAKEN);
-	pthread_mutex_lock(&vars->forks[(idx + 1) % vars->n_philo]);
+	if ((sem_wait(vars->forks) == -1))
+		ft_error("error: sem_wait\n", 1);
 	print_status(vars, philo, FORK_TAKEN);
-	pthread_mutex_unlock(&vars->pickup);
-	pthread_mutex_lock(&vars->eats[idx]);
+	if ((sem_post(vars->pickup) == -1))
+		ft_error("error: sem_post\n", 1);
+	if ((sem_wait(vars->eats) == -1))
+		ft_error("error: sem_wait\n", 1);
 	philo->last_eat_time = get_time();
-	pthread_mutex_unlock(&vars->eats[idx]);
+	if ((sem_post(vars->eats) == -1))
+		ft_error("error: sem_post\n", 1);
 	print_status(vars, philo, EATING);
 	ft_usleep(vars->t_eat);
-	pthread_mutex_lock(&vars->putdown);
-	pthread_mutex_unlock(&vars->forks[idx]);
-	pthread_mutex_unlock(&vars->forks[(idx + 1) % vars->n_philo]);
-	pthread_mutex_unlock(&vars->putdown);
+	if ((sem_wait(vars->putdown) == -1))
+		ft_error("error: sem_wait\n", 1);
+	if ((sem_post(vars->forks) == -1) || (sem_post(vars->forks) == -1))
+		ft_error("error: sem_wait\n", 1);
+	if ((sem_post(vars->putdown) == -1))
+		ft_error("error: sem_post\n", 1);
 	if ((++(philo->n_eat) == vars->n_must_eat))
 		return (0);
 	return (1);
@@ -326,9 +372,11 @@ void    *philosophing(void *v_philo)
 		print_status(vars, philo, SLEEPING);
 		ft_usleep(vars->t_sleep);
 	}
-	pthread_mutex_lock(&vars->alive);
-	vars->n_alive -= 1;
-	pthread_mutex_unlock(&vars->alive);
+	if ((sem_wait(vars->alive) == -1))
+		ft_error("error: sem_wait\n", 1);
+	vars->n_alive--;
+	if ((sem_post(vars->alive) == -1))
+		ft_error("error: sem_post\n", 1);
 	return (philo);
 }
 
@@ -341,17 +389,22 @@ void    *monitoring(void *v_philo)
 	vars = get_vars();
 	while (1)
 	{
-		pthread_mutex_lock(&vars->eats[philo->p_idx]);
-		if (get_time() - philo->last_eat_time > (unsigned long)vars->t_die)
+		if ((sem_wait(vars->eats) == -1))
+			ft_error("error: sem_wait\n", 1);
+		if (get_time() - philo->last_eat_time > (unsigned)vars->t_die)
 		{
 			print_status(vars, philo, DIED);
-			pthread_mutex_lock(&vars->someone_died);
+			if ((sem_wait(vars->someone_died) == -1))
+				ft_error("error: sem_wait\n", 1);
 			vars->flag_died = 1;
-			pthread_mutex_unlock(&vars->someone_died);
+			if ((sem_post(vars->someone_died) == -1))
+				ft_error("error: sem_post\n", 1);
 		}
-		pthread_mutex_unlock(&vars->eats[philo->p_idx]);
+		if ((sem_post(vars->eats) == -1))
+			ft_error("error: sem_wait\n", 1);
 		ft_usleep(5);
 	}
+	return (philo);
 }
 
 int create_philo_even(t_vars * vars, unsigned long start_time)
@@ -367,13 +420,13 @@ int create_philo_even(t_vars * vars, unsigned long start_time)
 		vars->philo[j].start_time = start_time;
 		vars->philo[j].last_eat_time = vars->philo[j].start_time;
 		if (pthread_create(&vars->philo[j].thread, NULL, &philosophing, &vars->philo[j]))
-			return (ft_error("Error: can not create pthread"));
+			return (ft_error("Error: can not create pthread", 0));
 		if (pthread_detach((vars->philo[j].thread)))
-			return (ft_error("Error: can not deatch pthread"));
+			return (ft_error("Error: can not deatch pthread", 0));
 		if (pthread_create(&vars->philo[j].m_thread, NULL, &monitoring, &vars->philo[j]))
-			return (ft_error("Error: can not create pthread"));
+			return (ft_error("Error: can not create pthread", 0));
 		if (pthread_detach((vars->philo[j].m_thread)))
-			return (ft_error("Error: can not deatch pthread"));
+			return (ft_error("Error: can not deatch pthread", 0));
 		++i;
 	}
 	return (1);
@@ -392,13 +445,13 @@ int create_philo_odd(t_vars * vars, unsigned long start_time)
 		vars->philo[j].start_time = start_time;
 		vars->philo[j].last_eat_time = vars->philo[j].start_time;
 		if (pthread_create(&vars->philo[j].thread, NULL, &philosophing, &vars->philo[j]))
-			return (ft_error("Error: can not create pthread"));
+			return (ft_error("Error: can not create pthread", 0));
 		if (pthread_detach((vars->philo[j].thread)))
-			return (ft_error("Error: can not deatch pthread"));
+			return (ft_error("Error: can not deatch pthread", 0));
 		if (pthread_create(&vars->philo[j].m_thread, NULL, &monitoring, &vars->philo[j]))
-			return (ft_error("Error: can not create pthread"));
+			return (ft_error("Error: can not create pthread", 0));
 		if (pthread_detach((vars->philo[j].m_thread)))
-			return (ft_error("Error: can not deatch pthread"));
+			return (ft_error("Error: can not deatch pthread", 0));
 		++i;
 	}
 	return (1);
@@ -427,24 +480,19 @@ int     free_struct(void *s) //here the argument is void to free variables easil
 
 int     free_all(int ret)
 {
-	t_vars	*vars;
-	int		i;
+	t_vars *vars;
 
 	vars = get_vars();
-	i = 0;
-	while (i < vars->n_philo)
-		sem_destroy(&vars->forks[i++]); //mutex_destroy는 ptherad_mutex_t 객체를 없앤다!!
-	i = 0;
-	while (i < vars->n_philo)
-		sem_destroy(&vars->eats[i++]);
-	sem_destroy(&vars->alive);
-	sem_destroy(&vars->print);
-	sem_destroy(&vars->someone_died);
-	sem_destroy(&vars->putdown);
-	sem_destroy(&vars->pickup);
-	free_struct((void *)vars->philo);
-	free_struct((void *)vars->eats);
-	free_struct((void *)vars->forks);
+	sem_close(vars->forks);
+	sem_close(vars->eats);
+	sem_close(vars->pickup);
+	sem_close(vars->putdown);
+	sem_close(vars->alive);
+	sem_close(vars->print);
+	sem_close(vars->someone_died);
+	sem_close(vars->print_error);
+	ft_unlink(0);
+	free(vars->philo);
 	return (ret);
 }
 
@@ -457,22 +505,23 @@ int     main(int argc, char **argv)
 	vars = get_vars();
 	if (!init(argc, argv) || !create_philo(vars))
 		return (-1);
-	//printf("====init done===\n");
-	//create philo 안에서 detach를 했기 때문에 thread functions가
-	//while문이라 하더라도 문제 없이 아래 while문으로 들어갈 수 있다!!!
 	while (1)
 	{
-		pthread_mutex_lock(&vars->alive);
+		if ((sem_wait(vars->alive) == -1))
+			return (ft_error("error: sem_wait\n", -1));
 		if (vars->n_alive == 0)
 			break ;
-		pthread_mutex_unlock(&vars->alive);
-		pthread_mutex_lock(&vars->someone_died);
+		if ((sem_post(vars->alive) == -1))
+			return (ft_error("error: sem_post\n", -1));
+		if ((sem_wait(vars->someone_died) == -1))
+			return (ft_error("error: sem_wait\n", -1));
 		if (vars->flag_died == 1)
 			return (free_all(0));
-		pthread_mutex_unlock(&vars->someone_died);
+		if ((sem_post(vars->someone_died) == -1))
+			return (ft_error("error: sem_post\n", -1));
 		ft_usleep(5);
 	}
 	if (vars->flag_died == 0)
-		ft_putstr("Every philosopher ate enough!\n");
+		ft_putstr_fd("Every philosopher ate enough!\n", 1);
 	return (free_all(0));
 }
