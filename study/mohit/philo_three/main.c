@@ -289,7 +289,7 @@ void    print_status_body(t_vars *vars, t_philo *philo, char *phrase, int exit_s
 	ft_putnbr(philo_no);
 	ft_putstr_fd(phrase, 1);
 	free(phrase);
-	if (!exit_status)
+	if (exit_status == 0)
 	{
 		if ((sem_post(vars->print) == -1))
 			ft_error("error: sem_post\n", 1);
