@@ -6,7 +6,7 @@
 /*   By: jkang <jkang@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/07/28 15:41:23 by jkang             #+#    #+#             */
-/*   Updated: 2020/07/28 15:45:17 by jkang            ###   ########.fr       */
+/*   Updated: 2020/07/28 20:37:11 by jkang            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,8 @@ static void	print_status_body(t_vars *vars, t_philo *philo, t_status status,\
 {
 	unsigned long	time;
 
+	if ((sem_wait(vars->print) == -1))
+		ft_error("error: sem_wait\n", 1);
 	time = get_time() - philo->start_time;
 	if ((sem_wait(vars->someone_died) == -1))
 		ft_error("error: sem_wait\n", 1);
@@ -28,8 +30,6 @@ static void	print_status_body(t_vars *vars, t_philo *philo, t_status status,\
 	}
 	if ((sem_post(vars->someone_died) == -1))
 		ft_error("error: sem_post\n", 1);
-	if ((sem_wait(vars->print) == -1))
-		ft_error("error: sem_wait\n", 1);
 	ft_putnbr(time);
 	ft_putstr_fd(" ", 1);
 	ft_putnbr(philo->p_idx + 1);

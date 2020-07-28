@@ -6,7 +6,7 @@
 /*   By: jkang <jkang@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/07/28 15:41:10 by jkang             #+#    #+#             */
-/*   Updated: 2020/07/28 16:27:11 by jkang            ###   ########.fr       */
+/*   Updated: 2020/07/28 20:40:50 by jkang            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,26 +15,28 @@
 static int	taken_fork_and_eat(t_vars *vars, t_philo *philo)
 {
 	if ((sem_wait(vars->pickup) == -1))
-		ft_error("error: sem_wait\n", 1);
+		ft_error("error: sem_wait3\n", 1);
 	if ((sem_wait(vars->forks) == -1))
-		ft_error("error: sem_wait\n", 1);
+		ft_error("error: sem_wait4\n", 1);
 	print_status(vars, philo, FORK_TAKEN);
 	if ((sem_wait(vars->forks) == -1))
-		ft_error("error: sem_wait\n", 1);
+		ft_error("error: sem_wait5\n", 1);
 	print_status(vars, philo, FORK_TAKEN);
 	if ((sem_post(vars->pickup) == -1))
 		ft_error("error: sem_post\n", 1);
 	if ((sem_wait(vars->eats) == -1))
-		ft_error("error: sem_wait\n", 1);
+		ft_error("error: sem_wait6\n", 1);
 	philo->last_eat_time = get_time();
+	print_status(vars, philo, EATING);
 	if ((sem_post(vars->eats) == -1))
 		ft_error("error: sem_post\n", 1);
-	print_status(vars, philo, EATING);
 	ft_usleep(vars->t_eat);
 	if ((sem_wait(vars->putdown) == -1))
-		ft_error("error: sem_wait\n", 1);
-	if ((sem_post(vars->forks) == -1) || (sem_post(vars->forks) == -1))
-		ft_error("error: sem_wait\n", 1);
+		ft_error("error: sem_wait7\n", 1);
+	if ((sem_post(vars->forks) == -1))
+		ft_error("error: sem_wait8\n", 1);
+	if ((sem_post(vars->forks) == -1))
+		ft_error("error: sem_wait8\n", 1);
 	if ((sem_post(vars->putdown) == -1))
 		ft_error("error: sem_post\n", 1);
 	return ((++(philo->n_eat) == vars->n_must_eat) ? 0 : 1);

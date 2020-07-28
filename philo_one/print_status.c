@@ -6,7 +6,7 @@
 /*   By: jkang <jkang@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/07/28 14:42:38 by jkang             #+#    #+#             */
-/*   Updated: 2020/07/28 15:40:03 by jkang            ###   ########.fr       */
+/*   Updated: 2020/07/28 20:11:58 by jkang            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,6 @@ static void	print_status_body(t_vars *vars, t_philo *philo, t_status status,\
 	ft_putstr(" ");
 	ft_putnbr(philo_no);
 	ft_putstr(phrase);
-	free(phrase);
 	if (!(status == DIED))
 		pthread_mutex_unlock(&vars->print);
 }
@@ -55,5 +54,6 @@ int			print_status(t_vars *vars, t_philo *philo, t_status status)
 	if (phrase == 0)
 		return (0);
 	print_status_body(vars, philo, status, phrase);
+	free(phrase);
 	return (1);
 }

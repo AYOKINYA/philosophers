@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   philosophers.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: jkang <jkang@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/07/28 15:41:20 by jkang             #+#    #+#             */
-/*   Updated: 2020/07/28 15:46:51 by jkang            ###   ########.fr       */
+/*   Updated: 2020/07/28 20:26:47 by jkang            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,11 +62,11 @@ int		main(int argc, char **argv)
 		if ((sem_post(vars->alive) == -1))
 			return (free_all("error: sem_post\n", -1));
 		if ((sem_wait(vars->someone_died) == -1))
-			return (free_all("error: sem_wait\n", -1));
+			return (free_all("error: sem_wait1\n", -1));
 		if (vars->flag_died == 1)
-			return (free_all(0, 0));
+			return (ft_unlink(1));
 		if ((sem_post(vars->someone_died) == -1))
-			return (free_all("error: sem_post\n", -1));
+			return (free_all("error: sem_post2\n", -1));
 		ft_usleep(5);
 	}
 	if (vars->flag_died == 0)
