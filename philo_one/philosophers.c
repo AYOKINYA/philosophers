@@ -37,7 +37,7 @@ void	*monitoring(void *v_philo)
 			pthread_mutex_unlock(&vars->someone_died);
 		}
 		pthread_mutex_unlock(&vars->eats[philo->p_idx]);
-		ft_usleep(5);
+		ft_usleep(100);
 	}
 }
 

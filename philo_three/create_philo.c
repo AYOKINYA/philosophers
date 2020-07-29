@@ -58,7 +58,7 @@ static void	*monitoring(void *v_philo)
 		}
 		if ((sem_post(vars->eats) == -1))
 			ft_error("error: sem_wait\n", 1);
-		ft_usleep(5);
+		ft_usleep(100);
 	}
 	return (philo);
 }
@@ -70,9 +70,9 @@ static void	*philosophing(void *v_philo)
 
 	vars = get_vars();
 	philo = (t_philo *)v_philo;
-	if (pthread_create(&philo->m_thread, NULL, &monitoring, philo))
+	if (pthread_create(&philo->m_thread, NULL, &monitoring, philo) != 0)
 		exit(ft_error("Error: can not create pthread", 1));
-	if (pthread_detach((philo->m_thread)))
+	if (pthread_detach(philo->m_thread) != 0)
 		exit(ft_error("Error: can not deatch pthread", 1));
 	while (1)
 	{
